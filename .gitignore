@@ -1,0 +1,15 @@
+.venv/
+venv32/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+
+build/
+dist/
+.pyinstaller/
+
+giftcard.db
+giftcard.log
+
+.DS_Store
+dist.zip
