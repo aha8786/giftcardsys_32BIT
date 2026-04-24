@@ -7,7 +7,7 @@ def get_stats(start_date: str, end_date: str) -> dict:
     end = f"{end_date} 23:59:59"
     with db.get_db() as conn:
         row = q.fetch_stats_by_period(conn, start, end)
-        total_balance = q.fetch_total_balance(conn)
+        total_balance = q.fetch_unspent_balance_from_transactions(conn)
         txs = q.fetch_transactions_by_period(conn, start, end)
         return {
             "total_charged": row["total_charged"],

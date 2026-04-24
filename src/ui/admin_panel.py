@@ -190,7 +190,7 @@ class AdminPanel(QWidget):
         table_outer.addWidget(table_header_w)
 
         sep = QFrame()
-        sep.setFrameShape(QFrame.Shape.HLine)
+        sep.setFrameShape(QFrame.HLine)
         sep.setFixedHeight(1)
         sep.setStyleSheet(f"background-color: {theme.BORDER};")
         table_outer.addWidget(sep)

@@ -73,3 +73,17 @@ BACKUP_SUCCESS_TITLE = "백업 완료"
 BACKUP_SUCCESS_MSG = "백업이 완료되었습니다.\n저장 위치: {path}"
 BACKUP_FAIL_TITLE = "백업 실패"
 BACKUP_FAIL_MSG = "백업 중 오류가 발생했습니다.\n{error}"
+
+# Member delete
+MEMBER_DELETE_BTN = "회원 삭제"
+MEMBER_DELETE_PW_TITLE = "비밀번호 확인"
+MEMBER_DELETE_PW_LABEL = "삭제 비밀번호를 입력하세요:"
+MEMBER_DELETE_PW_WRONG = "비밀번호가 틀렸습니다."
+MEMBER_DELETE_CONFIRM_TITLE = "회원 삭제 확인"
+MEMBER_DELETE_CONFIRM_MSG = (
+    "정말 삭제하시겠습니까?\n\n"
+    "카드 잔액이 0원으로 초기화되며\n"
+    "회원 정보가 영구 삭제됩니다.\n"
+    "거래내역은 유지됩니다."
+)
+MEMBER_DELETE_SUCCESS = "회원이 삭제되었습니다."

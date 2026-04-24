@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import (
     QLineEdit, QPushButton, QTableWidget, QTableWidgetItem, QHeaderView,
     QMessageBox, QFrame, QAbstractItemView,
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QFont
 
 from src.ui import messages as M
@@ -40,6 +40,8 @@ _PAY_BTN_STYLE = """
 
 
 class MemberSearchPanel(QWidget):
+    transaction_done = pyqtSignal()
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle(M.MEMBER_SEARCH_TITLE)
@@ -152,7 +154,7 @@ class MemberSearchPanel(QWidget):
         table_outer.addWidget(table_header_w)
 
         sep = QFrame()
-        sep.setFrameShape(QFrame.Shape.HLine)
+        sep.setFrameShape(QFrame.HLine)
         sep.setFixedHeight(1)
         sep.setStyleSheet(f"background-color: {theme.BORDER};")
         table_outer.addWidget(sep)
@@ -229,7 +231,8 @@ class MemberSearchPanel(QWidget):
         if keyword and not rows:
             QMessageBox.information(self, M.MEMBER_SEARCH_TITLE, M.MEMBER_NO_RESULT)
 
-    def _open_transaction(self, row_idx: int, mode: str):
+    def _open_transaction(self, row_idx, mode):
+        # type: (int, str) -> None
         if row_idx >= len(self._rows_data):
             return
         data = self._rows_data[row_idx]
@@ -241,7 +244,19 @@ class MemberSearchPanel(QWidget):
         from src.ui.transaction_dialog import TransactionDialog
         dlg = TransactionDialog(mode, barcode, balance, self)
         if dlg.exec_() and dlg.result_data:
+            result = dlg.result_data
+            label = "충전" if mode == "charge" else "결제"
+            QMessageBox.information(
+                self,
+                label + " 완료",
+                "{label} 완료\n{amount:,}원 {label}되었습니다.\n현재 잔액: {balance:,}원".format(
+                    label=label,
+                    amount=result["amount"],
+                    balance=result["balance"],
+                ),
+            )
             self._on_search()
+            self.transaction_done.emit()
 
     def _on_row_double_click(self, row: int, _col: int):
         if row >= len(self._rows_data):

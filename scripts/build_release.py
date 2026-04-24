@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from typing import List, Optional
 
 
 APP_NAME = "GiftCardSys"
@@ -17,7 +18,7 @@ ICON_ICO = ROOT / "img" / "logo1.ico"
 ICON_ICNS = ROOT / "img" / "logo1.icns"
 
 
-def run(cmd: list[str]) -> None:
+def run(cmd: List[str]) -> None:
     subprocess.run(cmd, check=True, cwd=ROOT)
 
 
@@ -28,7 +29,7 @@ def clean() -> None:
     PYI_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def convert_icon(system: str) -> Path | None:
+def convert_icon(system: str) -> Optional[Path]:
     if not ICON_PNG.exists():
         print(f"아이콘 파일 없음: {ICON_PNG} — 아이콘 없이 빌드합니다.")
         return None

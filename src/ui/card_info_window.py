@@ -163,7 +163,7 @@ class CardInfoWindow(QWidget):
 
         # 구분선
         sep = QFrame()
-        sep.setFrameShape(QFrame.Shape.HLine)
+        sep.setFrameShape(QFrame.HLine)
         sep.setFixedHeight(1)
         sep.setStyleSheet(f"background-color: {theme.BORDER};")
         hist_outer.addWidget(sep)
@@ -273,4 +273,5 @@ class CardInfoWindow(QWidget):
         from src.ui.member_search import MemberSearchPanel
         panel = MemberSearchPanel(self)
         panel.setWindowFlag(Qt.Window)
+        panel.transaction_done.connect(self._refresh)
         panel.show()

@@ -27,7 +27,7 @@ class TransactionDialog(QDialog):
         self.mode = mode
         self.barcode = barcode
         self.current_balance = current_balance
-        self.result_data: dict | None = None
+        self.result_data = None  # type: ignore
         self._build_ui()
 
     def _build_ui(self):

@@ -1,6 +1,7 @@
 import shutil
 from datetime import datetime
 from pathlib import Path
+from typing import List
 
 from config import settings
 
@@ -20,7 +21,7 @@ def create_backup() -> Path:
     return dest
 
 
-def list_backups() -> list[Path]:
+def list_backups() -> List[Path]:
     """백업 파일 목록을 최신순으로 반환한다."""
     backup_dir = Path(settings.BACKUP_DIR)
     if not backup_dir.exists():

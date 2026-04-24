@@ -76,6 +76,14 @@ def get_transactions_filtered(start: str, end: str, barcode: str = "", phone: st
         return [dict(r) for r in rows]
 
 
+def delete_member(user_id):
+    # type: (int) -> None
+    """회원 삭제: 카드 잔액 0 초기화 + 더미 유저 재배정 + users 레코드 삭제."""
+    with db.get_db() as conn:
+        placeholder_id = q.get_or_create_deleted_placeholder(conn)
+        q.delete_member(conn, user_id, placeholder_id)
+
+
 def find_cards_by_phone(phone_number: str) -> list:
     phone_number = phone_number.strip()
     with db.get_db() as conn:

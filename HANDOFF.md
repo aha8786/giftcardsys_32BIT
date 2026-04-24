@@ -414,3 +414,282 @@ GitHub의 `uxjoseph/supanova-design-skill`에서 설계 원칙을 추출하여 P
 ### 다음 작업 시 참고사항
 - 현재 설치 로그를 보면 `PyQt5` 휠이 `win_amd64`로 설치되므로, 진짜 32비트 Python을 사용하려면 반드시 32비트 인터프리터/가상환경에서 다시 설치해야 한다.
 - `python main.py` 실행 검증 시 즉시 에러 없이 GUI 이벤트 루프가 정상 진입했다.
+
+---
+
+## [2026-04-23] EXE 관리자 페이지 열면 꺼지는 버그 수정
+
+### 작업 내용
+Python 3.8 32-bit EXE에서 관리자 버튼 클릭 시 프로그램이 조용히 종료되는 문제를 분석하고 수정했다.
+
+**원인:**
+- `backup_service.py:23`의 `def list_backups() -> list[Path]:` 반환 타입 어노테이션이 Python 3.9+ 전용 문법(PEP 585)이었음.
+- Python 3.8에서 이 모듈이 로딩될 때 `TypeError: 'type' object is not subscriptable` 발생.
+- 관리자 패널은 lazy import 방식이라 버튼을 처음 클릭하는 순간 `backup_service`가 임포트되며 즉시 크래시.
+- EXE 빌드 설정 `console=False`로 인해 에러 메시지 없이 프로그램이 종료됨.
+- `scripts/build_release.py`도 동일 문제: `list[str]`(3.9+), `Path | None`(3.10+) 문법 포함.
+
+**수정 내용:**
+- `list[Path]` → `List[Path]` (`from typing import List` 추가)
+- `list[str]` → `List[str]`, `Path | None` → `Optional[Path]` (`from typing import List, Optional` 추가)
+- `_on_open_admin()`에 try/except 추가 — 이후 어떤 예외든 에러 팝업으로 표시됨
+
+### 변경된 파일
+- `src/service/backup_service.py` — `list[Path]` → `List[Path]`, `from typing import List` 추가
+- `scripts/build_release.py` — `list[str]` → `List[str]`, `Path | None` → `Optional[Path]`, typing import 추가
+- `src/ui/main_window.py` — `_on_open_admin()`에 try/except 추가
+
+### 다음 작업 시 참고사항
+- Python 3.8 호환을 위해 타입 힌트는 반드시 `typing` 모듈 사용: `List`, `Dict`, `Optional`, `Tuple` 등.
+- `X | Y` union 문법은 Python 3.10+. 3.8에서는 `Optional[X]` 또는 `Union[X, Y]` 사용.
+- `dict[str, int]`, `list[str]` 등 내장 타입 직접 구독은 Python 3.9+. 3.8에서는 `Dict[str, int]`, `List[str]` 사용.
+- 빌드 후 EXE를 `console=True`로 임시 전환하면 에러 메시지를 터미널에서 확인할 수 있어 디버깅에 유용하다.
+
+---
+
+## [2026-04-23] 회원 삭제 기능 추가
+
+### 작업 내용
+회원정보 수정 화면(더블클릭 → MemberEditDialog)에 "회원 삭제" 버튼을 추가하고 삭제 기능을 구현했다.
+
+**삭제 흐름:**
+1. [회원 삭제] 버튼 클릭 → 비밀번호 입력 다이얼로그 (QInputDialog, 비밀번호 마스킹)
+2. 비밀번호 "0000" 일치 확인 → 최종 확인 팝업(QMessageBox.question)
+3. 확인 시 DB 처리:
+   - `cards.balance = 0, user_id = NULL` (잔액 초기화 + 회원 연결 끊기)
+   - `users` 레코드 삭제
+   - `transactions` 레코드 보존 (card_id 참조 유지)
+4. 삭제 완료 팝업 → 다이얼로그 닫힘 → 회원 목록 자동 갱신
+
+**삭제 후 데이터 상태:**
+- 회원(users) 레코드: 삭제
+- 카드(cards) 레코드: 유지 (user_id=NULL, balance=0)
+- 거래내역(transactions): 전부 보존 (카드 ID로 여전히 조회 가능)
+- 삭제된 회원의 카드는 회원 목록에서 보이지 않음 (고아 카드)
+
+**Python 3.8 호환 처리:**
+- 타입 힌트에 `typing` 모듈 사용 (member_edit_dialog.py 인라인 주석 방식 적용)
+
+### 변경된 파일
+- `src/ui/messages.py` — 삭제 관련 문자열 상수 7개 추가
+- `src/db/queries.py` — `delete_member(conn, user_id)` 추가
+- `src/service/card_service.py` — `delete_member(user_id)` 추가
+- `src/ui/member_edit_dialog.py` — 버튼 행 재구성, 삭제 버튼 + `_on_delete()` 구현
+
+### 다음 작업 시 참고사항
+- 삭제 비밀번호는 `member_edit_dialog.py`의 `_DELETE_PASSWORD = "0000"` 상수로 관리.
+- 비밀번호 변경이 필요하면 이 상수 값만 수정하면 된다.
+- 고아 카드(user_id=NULL)는 바코드 스캔 시 `card_service.lookup()`에서 users 조회 시 `None`이 반환될 수 있으므로 추후 이 경로에 대한 방어 처리가 필요할 수 있다.
+
+---
+
+## [2026-04-23] 신규 회원 등록 화면 전화번호 기본값 체크박스 추가
+
+### 작업 내용
+`CardRegisterDialog`의 전화번호 입력 필드에 "기본값 입력" 체크박스를 추가했다.
+
+**동작:**
+- 기본 상태: 체크박스 ON → 전화번호 필드 비활성화, 값 = "01000000000"
+- 체크 해제 시: 전화번호 필드 활성화 + 내용 초기화, 포커스 자동 이동
+- 다시 체크 시: "01000000000"으로 복원, 필드 비활성화
+
+**추가 수정:**
+- `result_data: dict | None = None` (Python 3.10+ 문법) → `result_data = None`으로 교체
+- f-string 스타일 일부를 `.format()` 방식으로 교체 (일관성)
+
+### 변경된 파일
+- `src/ui/card_register_dialog.py` — 체크박스 추가, Python 3.10+ 문법 수정
+
+### 다음 작업 시 참고사항
+- 기본 전화번호는 `_DEFAULT_PHONE = "01000000000"` 상수로 관리.
+- 체크박스 상태 변경은 `stateChanged` 시그널 → `_on_phone_default_changed(state)` 슬롯에서 처리.
+- `Qt.Checked`는 PyQt5 호환 상수 (PyQt6에서는 `Qt.CheckState.Checked`).
+
+---
+
+## [2026-04-23] 신규 등록 화면 — 초기 충전 금액 숫자패드 추가
+
+### 작업 내용
+초기 충전 금액 입력 필드 우측 끝에 ⌨ 키보드 아이콘 버튼을 추가하고,
+클릭 시 다이얼로그 우측에 숫자패드 패널이 열리도록 구현했다.
+
+**레이아웃 구조 변경:**
+- 기존: `QVBoxLayout` 단일 폼
+- 변경: `QHBoxLayout` (외부) → 왼쪽 폼 패널(440px 고정) + 오른쪽 숫자패드 패널(222px, 토글)
+- 숫자패드 표시 시 `adjustSize()`로 다이얼로그 폭 자동 확장(440→662px), 숨김 시 자동 축소
+
+**키보드 버튼 동작:**
+- `setCheckable(True)` → 토글 버튼으로 동작
+- 체크됨(라임색): 숫자패드 표시 / 해제(회색): 숫자패드 숨김
+
+**숫자패드 입력 로직:**
+- 0~9, 00: 현재 값에 자릿수 추가 (`_format_amount`가 자동으로 쉼표 포맷)
+- C: 전체 지우기
+- 키보드 직접 입력과 동시 사용 가능 (같은 `_amount` 필드 공유)
+
+### 변경된 파일
+- `src/ui/card_register_dialog.py` — 전체 레이아웃 재구성, 숫자패드 패널 추가
+
+### 다음 작업 시 참고사항
+- 숫자패드 버튼 크기: `_NP_BTN_W = 62`, `_NP_BTN_H = 56` 상수로 조정 가능.
+- 패널 너비: `_NP_W = _NP_BTN_W * 3 + _NP_GAP * 2 + _NP_PAD * 2 = 222px`.
+- `adjustSize()`는 각 패널에 `setFixedWidth()`가 적용되어 있으므로 정확히 동작함.
+
+---
+
+## [2026-04-23] 체크박스 스타일 개선 + 복귀 버튼 드래그 후 클릭 불가 버그 수정
+
+### 작업 내용
+
+**체크박스 스타일 (card_register_dialog.py)**
+- "기본값 입력" 체크박스에 초록색 스타일 적용 (`border: #22c55e`, checked 배경: `#22c55e`)
+- 전화번호 필드에 `:disabled` 스타일 추가 → 비활성 시 배경 `#d1d5db`, 텍스트 `#6b7280`으로 시각적 구분
+
+**복귀 버튼 드래그 버그 수정 (return_button.py)**
+- 원인: `eventFilter`에서 `MouseButtonPress`에 `return True`로 이벤트 소비 → 버튼이 마우스 캡처를 못함 → 창 이동 후 `MouseButtonRelease`가 버튼에 전달 안 됨 → `_is_dragging` 리셋 안 됨 → 다음 클릭도 드래그로 판단
+- 해결: `btn.setAttribute(Qt.WA_TransparentForMouseEvents)` 적용 → 마우스 이벤트를 부모 QWidget에서 직접 처리
+- `eventFilter` 제거, `mousePressEvent` / `mouseMoveEvent` / `mouseReleaseEvent` / `enterEvent` / `leaveEvent` 오버라이드로 교체
+- hover/pressed 시각 피드백은 `enterEvent`·`leaveEvent`·`mousePress/Release`에서 버튼 스타일 직접 전환
+
+### 변경된 파일
+- `src/ui/card_register_dialog.py` — 체크박스 초록 스타일, 전화번호 필드 `:disabled` 스타일
+- `src/ui/return_button.py` — `WA_TransparentForMouseEvents` 방식으로 전면 재작성
+
+### 다음 작업 시 참고사항
+- `WA_TransparentForMouseEvents` 방식은 버튼의 CSS `:hover`/`:pressed` 의사 클래스가 동작하지 않음. 대신 `enterEvent`/`leaveEvent`에서 스타일 문자열을 직접 교체하는 방식으로 처리.
+- 체크박스 체크마크 이미지(`image: url(...)`)를 따로 지정하지 않았으므로 플랫폼 기본 체크마크가 사용됨. 원하는 이미지 아이콘이 있으면 `image: url(path)` 추가 가능.
+
+---
+
+## [2026-04-23] 복귀 버튼 위치 변경 + 드래그 이동 기능 추가
+
+### 작업 내용
+- 복귀 버튼 초기 위치를 오른쪽 아래 → **왼쪽 아래**로 변경.
+- 마우스 드래그로 버튼 위치를 자유롭게 이동할 수 있도록 구현.
+
+**드래그 구현 방식:**
+- `QPushButton.clicked` 시그널 대신 `eventFilter`로 마우스 이벤트를 직접 제어.
+- `MouseButtonPress`: 시작 좌표(`_drag_start`)와 위젯 위치(`_drag_origin`) 기록, 커서 → `SizeAllCursor`.
+- `MouseMove`: 이동량이 `_DRAG_THRESHOLD(5px)` 초과 시 드래그 모드로 전환, `widget.move()` 호출.
+- `MouseButtonRelease`: 드래그가 없었으면 클릭으로 판단 → `restore_requested` emit. 커서 → `PointingHandCursor` 복원.
+
+**클릭 vs 드래그 구분:**
+- 마우스를 5px 이상 움직이면 드래그 처리 (복귀 시그널 발생 안 함).
+- 5px 미만 이동 후 떼면 클릭으로 처리 (창 복귀 동작).
+
+### 변경된 파일
+- `src/ui/return_button.py` — 위치 변경, eventFilter 기반 드래그 구현, `btn.clicked` 제거
+
+### 다음 작업 시 참고사항
+- 드래그 임계값은 `_DRAG_THRESHOLD = 5` 상수로 조정 가능.
+- 초기 위치 변경은 `_reposition()` 메서드의 `screen.left() + margin` 부분 수정.
+- 드래그 후 위치는 저장되지 않음 — 프로그램 재시작 시 항상 왼쪽 아래로 초기화.
+
+---
+
+## [2026-04-23] 회원 삭제 NOT NULL 오류 수정 (더미 유저 방식)
+
+### 작업 내용
+`cards.user_id NOT NULL` 제약 때문에 `user_id = NULL` 방식으로 카드를 분리할 수 없었던 문제를 수정.
+탈퇴 회원 전용 더미 유저(`phone_number = "__deleted__"`)를 사용하는 방식으로 변경했다.
+
+**삭제 처리 흐름:**
+1. `__deleted__` 전화번호를 가진 더미 유저 조회 (없으면 자동 생성)
+2. 삭제 대상 회원의 카드를 더미 유저로 재배정 + 잔액 0 초기화
+3. 원래 회원 레코드 삭제
+
+**추가 수정:**
+- `search_users` 쿼리에 `AND u.phone_number != '__deleted__'` 조건 추가
+  → 더미 유저가 회원 목록에 노출되지 않음
+
+### 변경된 파일
+- `src/db/queries.py` — `get_or_create_deleted_placeholder()` 추가, `delete_member()` 시그니처 변경, `search_users()` 더미 유저 제외 조건 추가
+- `src/service/card_service.py` — `delete_member()` 에서 placeholder 생성 후 쿼리 호출
+
+### 다음 작업 시 참고사항
+- 더미 유저 식별자는 `queries._DELETED_PLACEHOLDER_PHONE = "__deleted__"` 상수로 관리.
+- 더미 유저는 첫 삭제 시 자동 생성되며 이후 재사용된다.
+- 더미 유저의 카드(탈퇴 회원 카드)는 바코드 스캔 시 `card_service.lookup()`에서 user가 더미 유저로 반환된다. 필요 시 UI에서 `phone_number == "__deleted__"` 체크로 별도 처리 가능.
+
+---
+
+## [2026-04-23] 최소화 버튼 다중 클릭 문제 수정 + 회원 목록 충전/결제 동작 수정
+
+### 작업 내용
+
+**1. 최소화 버튼 다중 클릭 문제 수정**
+`_on_minimize()`에서 `setWindowState(Qt.WindowNoState)`를 먼저 호출하면 OS 윈도우 매니저가 최소화를 되돌리려 하여 충돌 발생 → 버튼을 3회 눌러야 최소화되는 증상.
+- `_on_minimize()`: `setWindowState(Qt.WindowNoState)` 제거, `hide()` 만 호출
+- `restore_window()`: `show()` 전에 `setWindowState(Qt.WindowNoState)` 추가
+
+**2. 회원 목록 충전/결제 수정**
+- 문제 1: 충전/결제 완료 후 성공 팝업 없음 → `QMessageBox.information`으로 완료 메세지 추가
+- 문제 2: 메인 화면 거래내역이 갱신되지 않음 → `MemberSearchPanel`에 `transaction_done` 시그널 추가, `MainWindow._on_open_member_search()`에서 시그널 연결
+- 문제 3: 카드 정보 창에서 회원 검색 후 거래해도 카드 정보가 갱신되지 않음 → `CardInfoWindow._on_open_member_search()`에서 `panel.transaction_done.connect(self._refresh)` 연결
+- 추가: `TransactionDialog`의 `dict | None` Python 3.10+ 문법 → `None` 으로 수정 (Python 3.8 호환)
+
+### 변경된 파일
+- `src/ui/main_window.py`: `_on_minimize`, `restore_window`, `_on_open_member_search` 수정
+- `src/ui/member_search.py`: `transaction_done` 시그널 추가, `_open_transaction` 완료 팝업 + emit 추가
+- `src/ui/card_info_window.py`: `_on_open_member_search`에서 `transaction_done` 연결
+- `src/ui/transaction_dialog.py`: `result_data: dict | None = None` → Python 3.8 호환으로 수정
+
+### 다음 작업 시 참고사항
+- `MemberSearchPanel.transaction_done` 시그널: 충전/결제 완료 시 emit → 연결된 창(`MainWindow`, `CardInfoWindow`)이 자동 새로고침
+- 메인 창에서 회원 검색 창 열 때 반드시 `panel.transaction_done.connect(self._refresh_list)` 연결 필요
+
+---
+
+## [2026-04-23] 복귀 버튼 — 서브 창 열린 상태에서 작동 안 하는 버그 수정
+
+### 작업 내용
+서브 창(카드 정보, 회원 검색, 관리자 등)이 열린 채로 다른 프로그램에 가려지거나 최소화됐을 때 복귀 버튼이 동작하지 않는 버그를 수정했다.
+
+**원인:**
+- `restore_window()`에 "자식 창이 하나라도 열려 있으면 early return" 가드가 있었음.
+- Qt의 `isVisible()`은 "명시적으로 `hide()` 된 적 없으면 True"를 반환 → 다른 프로그램에 가려진 서브 창도 `isVisible() == True`.
+- 결과: 서브 창이 열린 순간부터 복귀 버튼이 완전히 무력화됨.
+
+**수정 내용 (A 방법 — 앱 전체를 포그라운드로):**
+- early return 가드 제거.
+- 메인 창이 숨겨져 있거나 최소화된 경우 복구 후 앞으로 가져오기.
+- 열려 있는 자식 창 전부도 최소화 복구 + `raise_()` + `activateWindow()` 처리.
+
+### 변경된 파일
+- `src/ui/main_window.py` — `restore_window()` 로직 전면 교체
+
+### 다음 작업 시 참고사항
+- `findChildren(QWidget)`은 재귀적으로 모든 자식을 반환하지만, `child.isWindow()`가 True인 것만 실제 독립 창 (CardInfoWindow, MemberSearchPanel, AdminPanel 등).
+- `isHidden()`이 False여도 최소화 상태(`windowState() & Qt.WindowMinimized`)일 수 있으므로 두 조건을 모두 체크.
+- 자식 창을 마지막에 올리므로 (메인 창 먼저 raise → 자식 창 나중에 raise) 자식 창이 최종 포커스를 가짐.
+
+---
+
+## [2026-04-24] Python 3.8 32비트 환경 호환성 수정
+
+### 작업 내용
+전체 파일을 탐색하여 Python 3.8 32비트 환경에서 발생할 수 있는 호환성 문제를 찾아 수정했다.
+
+**발견 및 수정 사항:**
+- `QFrame.Shape.VLine` / `QFrame.Shape.HLine` → `QFrame.VLine` / `QFrame.HLine` 으로 변경 (4개 파일)
+  - 원인: PySide6에서 PyQt5로 마이그레이션 시 남겨진 PySide6 스타일 enum 접근법
+  - PyQt5에서는 `QFrame.VLine` / `QFrame.HLine` 이 올바른 방식
+
+**문제 없음으로 확인된 사항:**
+- `requirements.txt`: `PyQt5>=5.15.11` → PyPI에서 `PyQt5-5.15.11-cp38-abi3-win32.whl` 확인 (32비트 Python 3.8 지원)
+- 5.15.8~5.15.10은 32비트 wheel 없음, 5.15.11이 32비트 지원 재개한 첫 버전
+- `Pillow>=10.0.0` → pip가 자동으로 Python 3.8 호환 버전(10.4.0) 설치
+- 타입 힌트: 모두 Python 3.8 호환 (`typing.Optional`, `typing.List` 사용)
+- `match` 문, `list[...]` 소문자 제네릭 등 Python 3.9+ 문법 없음
+- `keyboard` 라이브러리: main.py에서 try/except로 감싸져 있어 안전
+
+### 변경된 파일
+- `src/ui/main_window.py` (line 189): `QFrame.Shape.VLine` → `QFrame.VLine`
+- `src/ui/card_info_window.py` (line 166): `QFrame.Shape.HLine` → `QFrame.HLine`
+- `src/ui/member_search.py` (line 157): `QFrame.Shape.HLine` → `QFrame.HLine`
+- `src/ui/admin_panel.py` (line 193): `QFrame.Shape.HLine` → `QFrame.HLine`
+
+### 다음 작업 시 참고사항
+- PyQt5 32비트 Python 3.8 지원 버전: 5.15.11 (cp38-abi3-win32.whl). 5.15.8~5.15.10은 32비트 wheel 없음.
+- 빌드 시 PyInstaller가 필요하지만 requirements.txt에는 없음 — 별도 설치 필요: `pip install pyinstaller`
+- 32비트 빌드는 반드시 python38-32 인터프리터로 `python scripts/build_release.py` 실행해야 함

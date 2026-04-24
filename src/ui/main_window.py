@@ -186,7 +186,7 @@ class MainWindow(QMainWindow):
 
         # 구분선
         sep = QFrame()
-        sep.setFrameShape(QFrame.Shape.VLine)
+        sep.setFrameShape(QFrame.VLine)
         sep.setFixedHeight(70)
         sep.setStyleSheet(f"color: {theme.BORDER};")
         filter_main_row.addWidget(sep, alignment=Qt.AlignVCenter)
@@ -356,6 +356,7 @@ class MainWindow(QMainWindow):
         from src.ui.member_search import MemberSearchPanel
         panel = MemberSearchPanel(self)
         panel.setWindowFlag(Qt.Window)
+        panel.transaction_done.connect(self._refresh_list)
         panel.show()
 
     def _on_open_register(self):
@@ -364,10 +365,13 @@ class MainWindow(QMainWindow):
             self._refresh_list()
 
     def _on_open_admin(self):
-        from src.ui.admin_panel import AdminPanel
-        panel = AdminPanel(self)
-        panel.setWindowFlag(Qt.Window)
-        panel.show()
+        try:
+            from src.ui.admin_panel import AdminPanel
+            panel = AdminPanel(self)
+            panel.setWindowFlag(Qt.Window)
+            panel.show()
+        except Exception as e:
+            QMessageBox.critical(self, "오류", f"관리자 화면을 열 수 없습니다.\n\n{e}")
 
     # ── 최소화 / 복귀 ──────────────────────────────────────────────────────────
 
@@ -378,7 +382,6 @@ class MainWindow(QMainWindow):
             self._on_minimize()
 
     def _on_minimize(self):
-        self.setWindowState(Qt.WindowNoState)
         self.hide()
 
     def _create_return_button(self):
@@ -389,13 +392,18 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot()
     def restore_window(self):
-        # 자식 창(다이얼로그·서브 윈도우)이 하나라도 열려 있으면 동작하지 않음
-        for child in self.findChildren(QWidget):
-            if child.isWindow() and child.isVisible():
-                return
-        self.show()
+        if self.isHidden() or (self.windowState() & Qt.WindowMinimized):
+            self.setWindowState(Qt.WindowNoState)
+            self.show()
         self.raise_()
         self.activateWindow()
+
+        for child in self.findChildren(QWidget):
+            if child.isWindow() and not child.isHidden():
+                if child.windowState() & Qt.WindowMinimized:
+                    child.setWindowState(Qt.WindowNoState)
+                child.raise_()
+                child.activateWindow()
 
     def closeEvent(self, event):
         if self._return_btn is not None:

@@ -37,10 +37,11 @@ def search_users(conn: sqlite3.Connection, keyword: str) -> list:
         SELECT u.*, c.barcode, c.balance
         FROM users u
         LEFT JOIN cards c ON c.user_id = u.id
-        WHERE u.phone_number LIKE ? OR c.barcode LIKE ?
+        WHERE (u.phone_number LIKE ? OR c.barcode LIKE ?)
+          AND u.phone_number != ?
         ORDER BY u.created_at DESC, c.created_at DESC
         """,
-        (like, like),
+        (like, like, _DELETED_PLACEHOLDER_PHONE),
     ).fetchall()
 
 
@@ -77,6 +78,17 @@ def update_card_balance(conn: sqlite3.Connection, card_id: int, new_balance: int
 
 def fetch_total_balance(conn: sqlite3.Connection) -> int:
     row = conn.execute("SELECT COALESCE(SUM(balance), 0) AS total FROM cards").fetchone()
+    return row["total"]
+
+
+def fetch_unspent_balance_from_transactions(conn: sqlite3.Connection) -> int:
+    """전체 누적 충전 합계 - 전체 누적 사용 합계. 삭제된 회원의 소멸 잔액도 포함."""
+    row = conn.execute(
+        """
+        SELECT COALESCE(SUM(CASE WHEN type = '충전' THEN amount ELSE -amount END), 0) AS total
+        FROM transactions
+        """
+    ).fetchone()
     return row["total"]
 
 
@@ -140,6 +152,35 @@ def fetch_transactions_filtered(
         ORDER BY t.created_at DESC, t.id DESC
     """
     return conn.execute(sql, params).fetchall()
+
+
+_DELETED_PLACEHOLDER_PHONE = "__deleted__"
+
+
+def get_or_create_deleted_placeholder(conn):
+    # type: (sqlite3.Connection) -> int
+    """탈퇴 회원 카드를 위한 더미 유저 id를 반환한다. 없으면 생성한다."""
+    row = conn.execute(
+        "SELECT id FROM users WHERE phone_number = ?",
+        (_DELETED_PLACEHOLDER_PHONE,),
+    ).fetchone()
+    if row:
+        return row["id"]
+    cur = conn.execute(
+        "INSERT INTO users (phone_number) VALUES (?)",
+        (_DELETED_PLACEHOLDER_PHONE,),
+    )
+    return cur.lastrowid
+
+
+def delete_member(conn, user_id, placeholder_id):
+    # type: (sqlite3.Connection, int, int) -> None
+    """잔액 0 초기화 → 카드를 더미 유저로 재배정 → 회원 삭제. 거래내역은 보존."""
+    conn.execute(
+        "UPDATE cards SET balance = 0, user_id = ? WHERE user_id = ?",
+        (placeholder_id, user_id),
+    )
+    conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
 
 
 def fetch_stats_by_period(conn: sqlite3.Connection, start: str, end: str) -> sqlite3.Row:
