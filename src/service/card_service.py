@@ -32,9 +32,10 @@ def lookup(barcode: str) -> dict:
         }
 
 
-def register(barcode: str, phone_number: str, initial_amount: int) -> dict:
+def register(barcode: str, phone_number: str, name: str, initial_amount: int) -> dict:
     barcode = _validate_barcode(barcode)
     phone_number = phone_number.strip()
+    name = name.strip() if name else "홍길동"
     if not phone_number:
         raise ValueError("전화번호를 입력해 주세요.")
     if initial_amount < 0:
@@ -44,8 +45,7 @@ def register(barcode: str, phone_number: str, initial_amount: int) -> dict:
         if q.find_card_by_barcode(conn, barcode):
             raise DuplicateBarcodeError(barcode)
 
-        user = q.find_user_by_phone(conn, phone_number)
-        user_id = user["id"] if user else q.insert_user(conn, phone_number)
+        user_id = q.insert_user(conn, phone_number, name)
 
         card_id = q.insert_card(conn, barcode, user_id, initial_amount)
         if initial_amount > 0:
@@ -54,12 +54,13 @@ def register(barcode: str, phone_number: str, initial_amount: int) -> dict:
         return {"card_id": card_id, "user_id": user_id, "balance": initial_amount}
 
 
-def update_user_phone(user_id: int, phone_number: str) -> None:
+def update_user(user_id: int, phone_number: str, name: str) -> None:
     phone_number = phone_number.strip()
+    name = name.strip() if name else "홍길동"
     if not phone_number:
         raise ValueError("전화번호를 입력해 주세요.")
     with db.get_db() as conn:
-        q.update_user_phone(conn, user_id, phone_number)
+        q.update_user(conn, user_id, phone_number, name)
 
 
 def search_users(keyword: str) -> list:
@@ -87,10 +88,11 @@ def delete_member(user_id):
 def find_cards_by_phone(phone_number: str) -> list:
     phone_number = phone_number.strip()
     with db.get_db() as conn:
-        user = q.find_user_by_phone(conn, phone_number)
-        if not user:
-            return []
-        cards = q.find_cards_by_user_id(conn, user["id"])
+        cards = conn.execute(
+            "SELECT c.* FROM cards c JOIN users u ON u.id = c.user_id"
+            " WHERE u.phone_number = ? ORDER BY c.created_at DESC",
+            (phone_number,),
+        ).fetchall()
         result = []
         for card in cards:
             txs = q.fetch_transactions_by_card(conn, card["id"])

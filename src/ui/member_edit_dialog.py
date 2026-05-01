@@ -15,11 +15,12 @@ _DELETE_PASSWORD = "0000"
 
 
 class MemberEditDialog(QDialog):
-    def __init__(self, user_id, current_phone, parent=None):
-        # type: (int, str, object) -> None
+    def __init__(self, user_id, current_phone, current_name="", parent=None):
+        # type: (int, str, str, object) -> None
         super().__init__(parent)
         self.user_id = user_id
         self.current_phone = current_phone
+        self.current_name = current_name
         self.deleted = False
         self._build_ui()
 
@@ -62,6 +63,11 @@ class MemberEditDialog(QDialog):
         form.setHorizontalSpacing(12)
         form.setContentsMargins(18, 16, 18, 16)
         form.setLabelAlignment(Qt.AlignLeft)
+
+        self._name = QLineEdit(self.current_name)
+        self._name.setPlaceholderText("이름 입력")
+        self._name.setFixedHeight(38)
+        form.addRow(M.MEMBER_EDIT_NAME, self._name)
 
         self._phone = QLineEdit(self.current_phone)
         self._phone.setPlaceholderText("010-0000-0000")
@@ -120,12 +126,16 @@ class MemberEditDialog(QDialog):
     # ── 슬롯 ─────────────────────────────────────────────────────────────
 
     def _on_accept(self):
+        name = self._name.text().strip()
         phone = self._phone.text().strip()
         if not phone:
             QMessageBox.warning(self, M.ERR_TITLE, "전화번호를 입력해 주세요.")
             return
+        if not name:
+            QMessageBox.warning(self, M.ERR_TITLE, "이름을 입력해 주세요.")
+            return
         try:
-            card_service.update_user_phone(self.user_id, phone)
+            card_service.update_user(self.user_id, phone, name)
             self.accept()
         except (GiftCardError, ValueError) as e:
             QMessageBox.warning(self, M.ERR_TITLE, str(e))

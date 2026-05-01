@@ -14,7 +14,7 @@ def test_stats_empty(db):
 
 
 def test_stats_after_transactions(db):
-    card_service.register("8888", "010-8888-8888", 0)
+    card_service.register("8888", "010-8888-8888", "홍길동", 0)
     transaction_service.charge("8888", 20000)
     transaction_service.pay("8888", 5000)
 
@@ -25,15 +25,15 @@ def test_stats_after_transactions(db):
 
 
 def test_stats_total_balance_across_cards(db):
-    card_service.register("1001", "010-1001-1001", 10000)
-    card_service.register("1002", "010-1002-1002", 20000)
+    card_service.register("1001", "010-1001-1001", "홍길동", 10000)
+    card_service.register("1002", "010-1002-1002", "홍길동", 20000)
 
     result = svc.get_stats(_today(), _today())
     assert result["total_balance"] == 30000
 
 
 def test_stats_period_filter(db):
-    card_service.register("7777", "010-7777-7777", 0)
+    card_service.register("7777", "010-7777-7777", "홍길동", 0)
     transaction_service.charge("7777", 10000)
 
     result_today = svc.get_stats(_today(), _today())

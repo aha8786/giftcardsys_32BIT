@@ -13,6 +13,7 @@ from src.ui import theme
 from src.service import card_service
 from src.exceptions import GiftCardError
 
+_DEFAULT_NAME  = "홍길동"
 _DEFAULT_PHONE = "01000000000"
 _CHECKMARK_IMG = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "..", "..", "img", "checkmark_white.png"
@@ -105,6 +106,69 @@ class CardRegisterDialog(QDialog):
         self._barcode_input.setPlaceholderText("바코드 번호")
         self._barcode_input.setFixedHeight(40)
         form.addRow("바코드", self._barcode_input)
+
+        # 이름 + 기본값 체크박스
+        name_container = QWidget()
+        name_container.setStyleSheet("background: transparent;")
+        name_row = QHBoxLayout(name_container)
+        name_row.setContentsMargins(0, 0, 0, 0)
+        name_row.setSpacing(8)
+
+        self._name = QLineEdit(_DEFAULT_NAME)
+        self._name.setPlaceholderText("이름 입력")
+        self._name.setFixedHeight(40)
+        self._name.setEnabled(False)
+        self._name.setStyleSheet("""
+            QLineEdit {
+                background-color: #ffffff;
+                color: #0a0a0a;
+                border: 1.5px solid #e0e0e0;
+                border-radius: 10px;
+                padding: 8px 14px;
+            }
+            QLineEdit:disabled {
+                background-color: #d1d5db;
+                color: #6b7280;
+                border-color: #c4c9d0;
+            }
+            QLineEdit:focus {
+                border-color: #0a0a0a;
+            }
+        """)
+        name_row.addWidget(self._name, stretch=1)
+
+        self._name_default_cb = QCheckBox("기본값 입력")
+        self._name_default_cb.setChecked(True)
+        self._name_default_cb.setStyleSheet("""
+            QCheckBox {{
+                color: #166534;
+                font-size: 12px;
+                font-weight: 600;
+                spacing: 6px;
+            }}
+            QCheckBox::indicator {{
+                width: 16px;
+                height: 16px;
+                border: 2px solid #22c55e;
+                border-radius: 4px;
+                background-color: #ffffff;
+            }}
+            QCheckBox::indicator:checked {{
+                background-color: #22c55e;
+                border-color: #16a34a;
+                image: url("{checkmark}");
+            }}
+            QCheckBox::indicator:unchecked {{
+                background-color: #ffffff;
+                border-color: #22c55e;
+            }}
+            QCheckBox::indicator:hover {{
+                border-color: #16a34a;
+            }}
+        """.format(checkmark=_CHECKMARK_IMG))
+        self._name_default_cb.stateChanged.connect(self._on_name_default_changed)
+        name_row.addWidget(self._name_default_cb)
+        form.addRow(M.REGISTER_NAME_LABEL, name_container)
 
         # 전화번호 + 기본값 체크박스
         phone_container = QWidget()
@@ -302,6 +366,15 @@ class CardRegisterDialog(QDialog):
             else:
                 self._amount.setText(raw + key)
 
+    def _on_name_default_changed(self, state):
+        if state == Qt.Checked:
+            self._name.setText(_DEFAULT_NAME)
+            self._name.setEnabled(False)
+        else:
+            self._name.clear()
+            self._name.setEnabled(True)
+            self._name.setFocus()
+
     def _on_phone_default_changed(self, state):
         if state == Qt.Checked:
             self._phone.setText(_DEFAULT_PHONE)
@@ -325,9 +398,13 @@ class CardRegisterDialog(QDialog):
 
     def _on_accept(self):
         barcode = self._barcode_input.text().strip()
+        name = self._name.text().strip()
         phone = self._phone.text().strip()
         if not barcode:
             QMessageBox.warning(self, M.ERR_TITLE, "바코드를 입력해 주세요.")
+            return
+        if not name:
+            QMessageBox.warning(self, M.ERR_TITLE, "이름을 입력해 주세요.")
             return
         if not phone:
             QMessageBox.warning(self, M.ERR_TITLE, "전화번호를 입력해 주세요.")
@@ -335,7 +412,7 @@ class CardRegisterDialog(QDialog):
         digits = self._amount.text().replace(",", "")
         amount = int(digits) if digits else 0
         try:
-            self.result_data = card_service.register(barcode, phone, amount)
+            self.result_data = card_service.register(barcode, phone, name, amount)
             self.barcode = barcode
             self.accept()
         except GiftCardError as e:

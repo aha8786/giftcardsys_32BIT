@@ -118,9 +118,11 @@ class CardInfoWindow(QWidget):
         info_row = QHBoxLayout()
         info_row.setSpacing(10)
 
+        self._lbl_name    = self._make_info_card("이름",    "", theme.SURFACE_MID, theme.BODY)
         self._lbl_barcode = self._make_info_card("회원코드", "", theme.PRIMARY_LIGHT, theme.BRIGHT)
         self._lbl_phone   = self._make_info_card("전화번호", "", theme.SURFACE_MID, theme.BODY)
 
+        info_row.addWidget(self._lbl_name[0],    stretch=1)
         info_row.addWidget(self._lbl_barcode[0], stretch=1)
         info_row.addWidget(self._lbl_phone[0],   stretch=1)
         root.addLayout(info_row)
@@ -224,6 +226,7 @@ class CardInfoWindow(QWidget):
         card = info["card"]
         user = info["user"]
 
+        self._lbl_name[1].setText(user.get("name", ""))
         self._lbl_barcode[1].setText(card["barcode"])
         self._lbl_phone[1].setText(user["phone_number"])
         self._lbl_balance.setText(f"{card['balance']:,} 원")

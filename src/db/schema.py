@@ -6,6 +6,7 @@ _CREATE_USERS = """
 CREATE TABLE IF NOT EXISTS users (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     phone_number TEXT    NOT NULL,
+    name         TEXT    NOT NULL DEFAULT '홍길동',
     created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )
 """
@@ -46,3 +47,7 @@ def init_db() -> None:
         conn.execute(_CREATE_TRANSACTIONS)
         for idx_sql in _CREATE_INDEXES:
             conn.execute(idx_sql)
+        cur = conn.execute("PRAGMA table_info(users)")
+        cols = [r[1] for r in cur.fetchall()]
+        if "name" not in cols:
+            conn.execute("ALTER TABLE users ADD COLUMN name TEXT NOT NULL DEFAULT '홍길동'")

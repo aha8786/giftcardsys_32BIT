@@ -164,9 +164,11 @@ class MemberSearchPanel(QWidget):
 
         hdr = self._table.horizontalHeader()
         hdr.setSectionResizeMode(QHeaderView.Stretch)
-        hdr.setSectionResizeMode(4, QHeaderView.Fixed)
-        # 액션 버튼(충전/결제) 잘림 방지를 위해 여유 폭을 확보한다.
-        self._table.setColumnWidth(4, 132)
+        # 잔액·등록일·액션은 내용 너비 고정, 나머지(이름·전화번호·바코드)가 남은 공간을 채움
+        hdr.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # 잔액
+        hdr.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # 등록일
+        hdr.setSectionResizeMode(5, QHeaderView.Fixed)             # 액션 버튼
+        self._table.setColumnWidth(5, 132)
 
         self._table.verticalHeader().setDefaultSectionSize(52)
         self._table.setEditTriggers(QAbstractItemView.NoEditTriggers)
@@ -217,16 +219,17 @@ class MemberSearchPanel(QWidget):
 
         for r, row in enumerate(rows):
             for c, val in enumerate([
+                row.get("name", ""),
                 row.get("phone_number", ""),
                 row.get("barcode", ""),
-                f"{row.get('balance', 0):,} 원" if row.get("balance") is not None else "",
+                "{:,} 원".format(row.get("balance", 0)) if row.get("balance") is not None else "",
                 row.get("created_at", ""),
             ]):
                 item = QTableWidgetItem(str(val))
                 item.setTextAlignment(Qt.AlignCenter)
                 self._table.setItem(r, c, item)
 
-            self._table.setCellWidget(r, 4, self._make_action_cell(r))
+            self._table.setCellWidget(r, 5, self._make_action_cell(r))
 
         if keyword and not rows:
             QMessageBox.information(self, M.MEMBER_SEARCH_TITLE, M.MEMBER_NO_RESULT)
@@ -263,6 +266,6 @@ class MemberSearchPanel(QWidget):
             return
         data = self._rows_data[row]
         from src.ui.member_edit_dialog import MemberEditDialog
-        dlg = MemberEditDialog(data["id"], data.get("phone_number", ""), self)
+        dlg = MemberEditDialog(data["id"], data.get("phone_number", ""), data.get("name", ""), self)
         if dlg.exec_():
             self._on_search()

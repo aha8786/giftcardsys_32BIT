@@ -269,7 +269,7 @@ class MainWindow(QMainWindow):
         self._table.setHorizontalHeaderLabels(M.MAIN_LIST_HEADERS)
         hdr = self._table.horizontalHeader()
         hdr.setSectionResizeMode(QHeaderView.Stretch)
-        for col in (0, 1, 2, 6):  # 번호·구분·카드ID·일시는 내용 너비에 맞게
+        for col in (0, 1, 2, 7):  # 번호·구분·카드ID·일시는 내용 너비에 맞게
             hdr.setSectionResizeMode(col, QHeaderView.ResizeToContents)
         self._table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self._table.setSelectionBehavior(QAbstractItemView.SelectRows)
@@ -343,7 +343,8 @@ class MainWindow(QMainWindow):
             tx_type = tx["type"]
             values = [
                 tx["id"], theme.tx_label(tx_type), tx["card_id"], tx["phone_number"],
-                f"{tx['amount']:,}", f"{tx['balance_after']:,}", tx["created_at"],
+                tx.get("name", ""),
+                "{:,}".format(tx["amount"]), "{:,}".format(tx["balance_after"]), tx["created_at"],
                 tx["barcode"],
             ]
             for c, val in enumerate(values):

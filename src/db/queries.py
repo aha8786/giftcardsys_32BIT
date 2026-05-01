@@ -4,10 +4,10 @@ from typing import Optional
 
 # ── users ──────────────────────────────────────────────────────────────────
 
-def insert_user(conn: sqlite3.Connection, phone_number: str) -> int:
+def insert_user(conn: sqlite3.Connection, phone_number: str, name: str) -> int:
     cur = conn.execute(
-        "INSERT INTO users (phone_number) VALUES (?)",
-        (phone_number,),
+        "INSERT INTO users (phone_number, name) VALUES (?, ?)",
+        (phone_number, name),
     )
     return cur.lastrowid
 
@@ -23,25 +23,25 @@ def fetch_all_users(conn: sqlite3.Connection) -> list:
     return conn.execute("SELECT * FROM users ORDER BY created_at DESC").fetchall()
 
 
-def update_user_phone(conn: sqlite3.Connection, user_id: int, phone_number: str) -> None:
+def update_user(conn: sqlite3.Connection, user_id: int, phone_number: str, name: str) -> None:
     conn.execute(
-        "UPDATE users SET phone_number = ? WHERE id = ?",
-        (phone_number, user_id),
+        "UPDATE users SET phone_number = ?, name = ? WHERE id = ?",
+        (phone_number, name, user_id),
     )
 
 
 def search_users(conn: sqlite3.Connection, keyword: str) -> list:
-    like = f"%{keyword}%"
+    like = "%" + keyword + "%"
     return conn.execute(
         """
         SELECT u.*, c.barcode, c.balance
         FROM users u
         LEFT JOIN cards c ON c.user_id = u.id
-        WHERE (u.phone_number LIKE ? OR c.barcode LIKE ?)
+        WHERE (u.phone_number LIKE ? OR c.barcode LIKE ? OR u.name LIKE ?)
           AND u.phone_number != ?
         ORDER BY u.created_at DESC, c.created_at DESC
         """,
-        (like, like, _DELETED_PLACEHOLDER_PHONE),
+        (like, like, like, _DELETED_PLACEHOLDER_PHONE),
     ).fetchall()
 
 
@@ -119,7 +119,14 @@ def fetch_transactions_by_period(
     conn: sqlite3.Connection, start: str, end: str
 ) -> list:
     return conn.execute(
-        "SELECT * FROM transactions WHERE created_at BETWEEN ? AND ? ORDER BY created_at DESC, id DESC",
+        """
+        SELECT t.*, c.barcode, u.phone_number, u.name
+        FROM transactions t
+        JOIN cards c ON c.id = t.card_id
+        JOIN users u ON u.id = c.user_id
+        WHERE t.created_at BETWEEN ? AND ?
+        ORDER BY t.created_at DESC, t.id DESC
+        """,
         (start, end),
     ).fetchall()
 
@@ -142,15 +149,15 @@ def fetch_transactions_filtered(
         params["phone"] = f"%{phone}%"
 
     where = " AND ".join(conditions)
-    sql = f"""
-        SELECT t.id, t.card_id, c.barcode, u.phone_number,
-               t.type, t.amount, t.balance_after, t.created_at
-        FROM transactions t
-        JOIN cards c ON c.id = t.card_id
-        JOIN users u ON u.id = c.user_id
-        WHERE {where}
-        ORDER BY t.created_at DESC, t.id DESC
-    """
+    sql = (
+        "SELECT t.id, t.card_id, c.barcode, u.phone_number, u.name,"
+        " t.type, t.amount, t.balance_after, t.created_at"
+        " FROM transactions t"
+        " JOIN cards c ON c.id = t.card_id"
+        " JOIN users u ON u.id = c.user_id"
+        " WHERE " + where +
+        " ORDER BY t.created_at DESC, t.id DESC"
+    )
     return conn.execute(sql, params).fetchall()
 
 
@@ -167,8 +174,8 @@ def get_or_create_deleted_placeholder(conn):
     if row:
         return row["id"]
     cur = conn.execute(
-        "INSERT INTO users (phone_number) VALUES (?)",
-        (_DELETED_PLACEHOLDER_PHONE,),
+        "INSERT INTO users (phone_number, name) VALUES (?, ?)",
+        (_DELETED_PLACEHOLDER_PHONE, "(삭제)"),
     )
     return cur.lastrowid
 

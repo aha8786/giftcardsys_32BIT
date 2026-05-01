@@ -195,11 +195,11 @@ class AdminPanel(QWidget):
         sep.setStyleSheet(f"background-color: {theme.BORDER};")
         table_outer.addWidget(sep)
 
-        self._table = QTableWidget(0, len(M.TX_TABLE_HEADERS))
-        self._table.setHorizontalHeaderLabels(M.TX_TABLE_HEADERS)
+        self._table = QTableWidget(0, len(M.ADMIN_TX_HEADERS))
+        self._table.setHorizontalHeaderLabels(M.ADMIN_TX_HEADERS)
         hdr = self._table.horizontalHeader()
         hdr.setSectionResizeMode(QHeaderView.Stretch)
-        for col in (0, 1, 2, 5):  # 번호·구분·카드ID·일시는 내용 너비에 맞게
+        for col in (0, 1, 2, 7):  # 번호·구분·카드ID·일시는 내용 너비에 맞게
             hdr.setSectionResizeMode(col, QHeaderView.ResizeToContents)
         self._table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self._table.setAlternatingRowColors(False)
@@ -284,7 +284,8 @@ class AdminPanel(QWidget):
             tx_type = tx["type"]
             for col, val in enumerate([
                 tx["id"], theme.tx_label(tx["type"]), tx["card_id"],
-                f"{tx['amount']:,}", f"{tx['balance_after']:,}", tx["created_at"],
+                tx.get("phone_number", ""), tx.get("name", ""),
+                "{:,}".format(tx["amount"]), "{:,}".format(tx["balance_after"]), tx["created_at"],
             ]):
                 item = QTableWidgetItem(str(val))
                 item.setTextAlignment(Qt.AlignCenter)

@@ -9,7 +9,7 @@ FILTER_PERIOD_END = "종료일"
 FILTER_BARCODE = "회원코드"
 FILTER_PHONE = "전화번호"
 BTN_SEARCH_FILTER = "조회"
-MAIN_LIST_HEADERS = ["번호", "구분", "카드 ID", "전화번호", "금액", "거래 후 잔액", "일시", "바코드 ID"]
+MAIN_LIST_HEADERS = ["번호", "구분", "카드 ID", "전화번호", "이름", "금액", "거래 후 잔액", "일시", "바코드 ID"]
 
 # Card info window (이미 등록된 회원)
 CARD_INFO_TITLE = "회원 카드 정보"
@@ -21,9 +21,11 @@ BTN_CHARGE = "충전"
 BTN_PAY = "결제"
 BTN_MEMBER_INFO = "회원정보"
 TX_TABLE_HEADERS = ["번호", "구분", "카드 ID", "금액", "거래 후 잔액", "일시"]
+ADMIN_TX_HEADERS = ["번호", "구분", "카드 ID", "전화번호", "이름", "금액", "거래 후 잔액", "일시"]
 
 # Card register dialog
 REGISTER_TITLE = "신규 카드 등록"
+REGISTER_NAME_LABEL = "이름"
 REGISTER_PHONE_LABEL = "전화번호"
 REGISTER_INITIAL_LABEL = "초기 충전 금액 (원)"
 REGISTER_BTN_OK = "확인"
@@ -40,11 +42,12 @@ BTN_CANCEL = "취소"
 MEMBER_SEARCH_TITLE = "회원 정보"
 MEMBER_SEARCH_PLACEHOLDER = "번호 또는 회원정보 입력"
 MEMBER_BTN_SEARCH = "조회"
-MEMBER_LIST_HEADERS = ["전화번호", "바코드", "잔액", "등록일", ""]
+MEMBER_LIST_HEADERS = ["이름", "전화번호", "바코드", "잔액", "등록일", ""]
 MEMBER_NO_RESULT = "검색 결과가 없습니다."
 
 # Member edit dialog
 MEMBER_EDIT_TITLE = "회원정보 수정"
+MEMBER_EDIT_NAME = "이름"
 MEMBER_EDIT_PHONE = "전화번호"
 MEMBER_EDIT_BTN_OK = "확인"
 

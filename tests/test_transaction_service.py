@@ -6,7 +6,7 @@ from src.exceptions import InsufficientBalanceError, InvalidAmountError, CardNot
 
 
 def _register(barcode="1000000001", phone="010-0000-0001", balance=10000):
-    card_service.register(barcode, phone, balance)
+    card_service.register(barcode, phone, "홍길동", balance)
     return barcode
 
 
