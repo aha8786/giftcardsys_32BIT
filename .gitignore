@@ -1,5 +1,7 @@
 .venv/
 venv32/
+venv_build/
+venv_clean/
 __pycache__/
 .pytest_cache/
 .mypy_cache/
@@ -7,6 +9,10 @@ __pycache__/
 build/
 dist/
 .pyinstaller/
+
+backups/
+tmp_compare/
+tests/diagnostics/
 
 giftcard.db
 giftcard.log

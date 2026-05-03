@@ -1,9 +1,23 @@
+import os
+
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLineEdit, QPushButton, QLabel, QMessageBox, QFrame,
+    QScrollArea, QWidget, QApplication,
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
+
+
+def _available_screen_height(default=1080):
+    # GIFTCARD_FAKE_SCREEN_H 환경변수가 있으면 사용 (작은 화면 동작 검증/테스트용)
+    fake = int(os.environ.get("GIFTCARD_FAKE_SCREEN_H", "0") or "0")
+    if fake > 0:
+        return fake
+    screen = QApplication.primaryScreen()
+    if screen is not None:
+        return screen.availableGeometry().height()
+    return default
 
 from src.ui import messages as M
 from src.ui import theme
@@ -40,9 +54,29 @@ class TransactionDialog(QDialog):
         numpad_h = 4 * _BTN_H + 3 * _GAP  # 350
         base_h   = 36 + 10 + 90 + 10 + 58 + 10 + numpad_h + 10 + 48 + _PAD * 2
         extra_h  = (48 + 10) if is_pay else 0
-        self.setFixedSize(_W, base_h + extra_h)
+        content_h = base_h + extra_h
 
-        root = QVBoxLayout(self)
+        # 화면이 작으면(예: 1366x768 + 작업표시줄) 다이얼로그를 줄이고 내부에 스크롤이 생기도록 함
+        screen_h = _available_screen_height()
+        avail_h = min(content_h, max(400, screen_h - 80))
+        self.setFixedSize(_W, avail_h)
+
+        # 외곽 레이아웃: ScrollArea 한 개만
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        outer.addWidget(scroll)
+
+        content = QWidget()
+        scroll.setWidget(content)
+
+        root = QVBoxLayout(content)
         root.setSpacing(10)
         root.setContentsMargins(_PAD, _PAD, _PAD, _PAD)
 

@@ -5,6 +5,8 @@ from PyQt5.QtWidgets import QWidget, QPushButton
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QGuiApplication, QIcon, QPixmap
 
+from src.paths import resource_path
+
 _STYLE_NORMAL = """
     QPushButton {
         background-color: #ffffff;
@@ -36,7 +38,7 @@ class FloatingReturnButton(QWidget):
 
     restore_requested = pyqtSignal()
 
-    _LOGO_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "img", "logo.png")
+    _LOGO_PATH = resource_path("img/logo.png")
     _SIZE = 60
     _DRAG_THRESHOLD = 5
     _MACOS_FLOATING_LEVEL = 3

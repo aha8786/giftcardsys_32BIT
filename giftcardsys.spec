@@ -32,6 +32,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=['C:\\Users\\aha94\\OneDrive\\바탕 화면\\새 폴더 (2)\\giftcardsys_32BIT\\img\\logo1.ico'],
 )
 coll = COLLECT(
     exe,

@@ -14,6 +14,7 @@ from src.ui import theme
 from src.ui.card_register_dialog import CardRegisterDialog
 from src.service import card_service
 from src.exceptions import CardNotFoundError, GiftCardError
+from src.paths import resource_path
 
 
 class MainWindow(QMainWindow):
@@ -21,7 +22,9 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.notifiers = notifiers
         self.setWindowTitle(M.APP_TITLE)
-        self.setMinimumSize(1060, 720)
+        # 1366x768 환경(작업표시줄 + 타이틀바 = 약 80px 차감)에서도 들어가도록 높이를 640으로 낮춘다.
+        # 거래내역 테이블은 자체 스크롤 가능하므로 화면이 작으면 테이블만 줄어든다.
+        self.setMinimumSize(1060, 640)
         self._build_ui()
         self._refresh_list()
         self._return_btn = self._create_return_button()
@@ -208,15 +211,15 @@ class MainWindow(QMainWindow):
                 btn.setIconSize(ICON_SIZE)
             return btn
 
-        btn_member = _make_nav_btn("img/회원.png", "회원")
+        btn_member = _make_nav_btn(resource_path("img/회원.png"), "회원")
         btn_member.clicked.connect(self._on_open_member_search)
         filter_main_row.addWidget(btn_member, stretch=1)
 
-        btn_register = _make_nav_btn("img/신규.png", "신규")
+        btn_register = _make_nav_btn(resource_path("img/신규.png"), "신규")
         btn_register.clicked.connect(self._on_open_register)
         filter_main_row.addWidget(btn_register, stretch=1)
 
-        btn_admin = _make_nav_btn("img/관리자.png", "관리자")
+        btn_admin = _make_nav_btn(resource_path("img/관리자.png"), "관리자")
         btn_admin.clicked.connect(self._on_open_admin)
         filter_main_row.addWidget(btn_admin, stretch=1)
 
